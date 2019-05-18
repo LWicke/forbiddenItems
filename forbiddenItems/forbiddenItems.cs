@@ -219,7 +219,7 @@ namespace Oxide.Plugins
 
                 else if (permission.UserHasPermission(basePlayer.UserIDString, "forbiddenItems.pumpkin"))
                 {
-                    if (!config.pumpkin.Contains(name))
+                    if (config.pumpkin.Contains(name))
                     {
                         return false;
                     }
