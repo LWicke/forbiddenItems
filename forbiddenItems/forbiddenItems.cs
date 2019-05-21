@@ -58,6 +58,7 @@ namespace Oxide.Plugins
 #endif
             if (player != null)
             {
+                projectile.primaryMagazine.SwitchAmmoTypesIfNeeded(player);
                 if (forbidden(player, projectile.primaryMagazine.ammoType.shortname))
                 {
                     PrintToChat(player, "you are not allowed to use {0}!", projectile.primaryMagazine.ammoType.shortname);
@@ -137,11 +138,57 @@ namespace Oxide.Plugins
             return null;
         }
 
-        ItemContainer.CanAcceptResult CanAcceptItem(ItemContainer container, Item item, int targetPos)
+        void OnPlayerActiveItemChanged(BasePlayer player, Item oldItem, Item newItem)
         {
+#if DEBUG
+            PrintToChat(player, "changed active item from {0} to {1}", oldItem.info.shortname, newItem.info.shortname);
+#endif
+            if (newItem.contents != null)
+            {
+                if (newItem.contents.itemList.Count != 0)
+                {
+#if DEBUG
+                    PrintToChat(player, "{0} content:", newItem.info.shortname);
+#endif
+                    foreach (Item it in newItem.contents.itemList)
+                    {
+#if DEBUG
+                        PrintToChat(player, "{0}", it.info.shortname);
+#endif
+                        if (forbidden(player, it.info.shortname))
+                        {
+                            player.GiveItem(it);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        [ChatCommand("info")]
+        private void info(BasePlayer player, string command, string[] args)
+        {
+            PrintToChat(player, "info: {0}", player.GetActiveItem().contents.parent.info.shortname);
+            foreach(Item it in player.GetActiveItem().contents.itemList)
+            {
+                PrintToChat(player, "{0}", it.info.shortname);
+            }
+        }
+
+            ItemContainer.CanAcceptResult CanAcceptItem(ItemContainer container, Item item, int targetPos)
+        {
+#if HARDDEBUG
+            PrintToChat( "item: {0} moved to container: {1}", item.info.shortname, container.uid);
+#endif
+
             if (container != null)
             {
-                BasePlayer basePlayer = container.GetOwnerPlayer();
+                BasePlayer basePlayer = item.GetOwnerPlayer();
+                if(basePlayer == null)
+                {
+                    if(container.parent != null)
+                    basePlayer = container.parent.GetOwnerPlayer();
+                }
 
                 if (basePlayer != null)
                 {
@@ -149,7 +196,6 @@ namespace Oxide.Plugins
                     PrintToChat(basePlayer, "item: {0} moved to container: {1}", item.info.shortname, container.uid);
                     if (container.Equals(basePlayer.inventory.containerBelt)) PrintToChat(basePlayer, "Belt");
 #endif
-                    {
                         if (forbidden(basePlayer, item.info.shortname))
                         {
                             if (container.Equals(basePlayer.inventory.containerBelt) || container.Equals(basePlayer.inventory.containerWear))
@@ -157,8 +203,21 @@ namespace Oxide.Plugins
                                 PrintToChat(basePlayer, "you are not allowed to equip {0}!", item.info.shortname);
                                 return ItemContainer.CanAcceptResult.CannotAccept;
                             }
+                            if (item.parent != null)
+                            {
+                                if (item.parent.parent != null)
+                                {
+                                    if (container.parent.parent.Equals(basePlayer.inventory.containerBelt))
+                                    {
+                                        PrintToChat(basePlayer, "you are not allowed to equip {0}!", item.info.shortname);
+                                        return ItemContainer.CanAcceptResult.CannotAccept;
+                                    }
+                                }
+                            }
                         }
-                    }
+                        
+
+
                 }
                 if (item.contents != null)
                 {
